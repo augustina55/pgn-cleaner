@@ -3,45 +3,136 @@
 <head>
 <meta charset="UTF-8">
 <title>PGN Cleaner</title>
+
 <style>
   body {
-    font-family: Arial, sans-serif;
     margin: 0;
-    padding: 10px;
+    font-family: system-ui, Arial, sans-serif;
+    background: #eeeeee;
+    color: #222;
   }
-  .container {
+
+  header {
+    background: #f5f5f5;
+    border-bottom: 1px solid #ccc;
+    padding: 12px 20px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .toolbar {
+    padding: 10px 20px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
     display: flex;
     gap: 10px;
   }
-  textarea {
-    width: 50%;
-    height: 90vh;
-    font-family: monospace;
+
+  button, input[type="file"] {
+    background: #ffffff;
+    border: 1px solid #bbb;
+    padding: 6px 12px;
     font-size: 14px;
-    padding: 10px;
-    box-sizing: border-box;
-  }
-  button {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    margin: 10px 0;
     cursor: pointer;
+  }
+
+  button:hover {
+    background: #eaeaea;
+  }
+
+  button:disabled {
+    background: #dddddd;
+    color: #888;
+    cursor: not-allowed;
+  }
+
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 10px;
+    height: calc(100vh - 120px);
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #ccc;
+  }
+
+  .panel h3 {
+    margin: 0;
+    padding: 6px 10px;
+    font-size: 13px;
+    background: #f7f7f7;
+    border-bottom: 1px solid #ccc;
+  }
+
+  textarea {
+    flex: 1;
+    width: 100%;
+    border: none;
+    padding: 10px;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    background: #fafafa;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 12px;
+    padding: 6px;
+    color: #666;
+    background: #f5f5f5;
+    border-top: 1px solid #ccc;
   }
 </style>
 </head>
 <body>
 
-<button onclick="cleanPGN()">Clean PGN</button>
+<header>PGN Cleaner</header>
 
-<div class="container">
-  <textarea id="input" placeholder="Paste raw PGN here..."></textarea>
-  <textarea id="output" placeholder="Cleaned PGN will appear here..."></textarea>
+<div class="toolbar">
+  <input type="file" id="pgnFile" accept=".pgn">
+  <button onclick="cleanPGN()">Clean PGN</button>
+  <button id="downloadBtn" onclick="downloadPGN()" disabled>Download PGN</button>
 </div>
 
+<div class="container">
+  <div class="panel">
+    <h3>Input PGN</h3>
+    <textarea id="input" placeholder="Paste or import PGN here..."></textarea>
+  </div>
+
+  <div class="panel">
+    <h3>Cleaned PGN</h3>
+    <textarea id="output" placeholder="Cleaned PGN will appear here..."></textarea>
+  </div>
+</div>
+
+<footer>Chess PGN Utility</footer>
+
 <script>
+// Import PGN
+document.getElementById("pgnFile").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById("input").value = e.target.result;
+  };
+  reader.readAsText(file);
+});
+
+// Clean PGN
 function cleanPGN() {
   const input = document.getElementById("input").value.trim();
+  if (!input) return;
+
   const games = input.split(/\n\s*\n(?=\[Event)/);
   let output = [];
 
@@ -65,14 +156,13 @@ function cleanPGN() {
 
     let movesRaw = moveLines.join(" ");
 
-    // Capture LAST {} only (comment after moves)
+    // Keep only last {} after moves
     let trailingComment = "";
-    const matches = [...movesRaw.matchAll(/\{[^}]*\}/g)];
-    if (matches.length) {
-      trailingComment = matches[matches.length - 1][0];
+    const comments = [...movesRaw.matchAll(/\{[^}]*\}/g)];
+    if (comments.length) {
+      trailingComment = comments[comments.length - 1][0];
     }
 
-    // Remove all comments
     let moves = movesRaw
       .replace(/\{[^}]*\}/g, "")
       .replace(/\*/g, "")
@@ -82,14 +172,29 @@ function cleanPGN() {
     let side = fenLine.includes(" b ") ? "Black to play" : "White to play";
 
     let finalLine = `{${side}} ${moves}`;
-    if (trailingComment) {
-      finalLine += " " + trailingComment;
-    }
+    if (trailingComment) finalLine += " " + trailingComment;
 
     output.push(headers.join("\n") + "\n" + finalLine);
   });
 
   document.getElementById("output").value = output.join("\n\n");
+  document.getElementById("downloadBtn").disabled = false;
+}
+
+// Download PGN
+function downloadPGN() {
+  const text = document.getElementById("output").value;
+  if (!text) return;
+
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "cleaned.pgn";
+  a.click();
+
+  URL.revokeObjectURL(url);
 }
 </script>
 
