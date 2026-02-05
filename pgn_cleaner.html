@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PGN Cleaner</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 10px;
+  }
+  .container {
+    display: flex;
+    gap: 10px;
+  }
+  textarea {
+    width: 50%;
+    height: 90vh;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+  button {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin: 10px 0;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<button onclick="cleanPGN()">Clean PGN</button>
+
+<div class="container">
+  <textarea id="input" placeholder="Paste raw PGN here..."></textarea>
+  <textarea id="output" placeholder="Cleaned PGN will appear here..."></textarea>
+</div>
+
+<script>
+function cleanPGN() {
+  const input = document.getElementById("input").value.trim();
+  const games = input.split(/\n\s*\n(?=\[Event)/);
+  let output = [];
+
+  games.forEach(game => {
+    let lines = game.split("\n");
+    let headers = [];
+    let moveLines = [];
+    let fenLine = "";
+
+    lines.forEach(line => {
+      line = line.trim();
+      if (!line) return;
+
+      if (line.startsWith("[")) {
+        headers.push(line);
+        if (line.startsWith("[FEN")) fenLine = line;
+      } else {
+        moveLines.push(line);
+      }
+    });
+
+    let movesRaw = moveLines.join(" ");
+
+    // Capture LAST {} only (comment after moves)
+    let trailingComment = "";
+    const matches = [...movesRaw.matchAll(/\{[^}]*\}/g)];
+    if (matches.length) {
+      trailingComment = matches[matches.length - 1][0];
+    }
+
+    // Remove all comments
+    let moves = movesRaw
+      .replace(/\{[^}]*\}/g, "")
+      .replace(/\*/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let side = fenLine.includes(" b ") ? "Black to play" : "White to play";
+
+    let finalLine = `{${side}} ${moves}`;
+    if (trailingComment) {
+      finalLine += " " + trailingComment;
+    }
+
+    output.push(headers.join("\n") + "\n" + finalLine);
+  });
+
+  document.getElementById("output").value = output.join("\n\n");
+}
+</script>
+
+</body>
+</html>
