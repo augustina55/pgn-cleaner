@@ -136,7 +136,10 @@ function cleanPGN() {
   const games = input.split(/\n\s*\n(?=\[Event)/);
   let output = [];
 
-  games.forEach(game => {
+  games.forEach((game, index) => {
+
+    let puzzleNum = index + 1;
+
     let lines = game.split("\n");
     let headers = [];
     let moveLines = [];
@@ -147,16 +150,32 @@ function cleanPGN() {
       if (!line) return;
 
       if (line.startsWith("[")) {
+
+        // REMOVE old Event / White / Annotator / ChapterURL if present
+        if (
+          line.startsWith("[Event") ||
+          line.startsWith("[White") ||
+          line.startsWith("[Annotator") ||
+          line.startsWith("[ChapterURL")
+        ) return;
+
         headers.push(line);
+
         if (line.startsWith("[FEN")) fenLine = line;
+
       } else {
         moveLines.push(line);
       }
     });
 
+    // ADD YOUR CUSTOM HEADERS
+    headers.unshift(`[White "Position ${puzzleNum}"]`);
+    headers.unshift(`[Event "Puzzle ${puzzleNum}"]`);
+    headers.unshift(`[ChapterURL ""]`);
+    headers.unshift(`[Annotator "Circlechess"]`);
+
     let movesRaw = moveLines.join(" ");
 
-    // Keep only last {} after moves
     let trailingComment = "";
     const comments = [...movesRaw.matchAll(/\{[^}]*\}/g)];
     if (comments.length) {
