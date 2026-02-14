@@ -1,65 +1,87 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>PGN Cleaner</title>
+<title>PGN Cleaner + Kids Hint</title>
 
 <style>
-body{margin:0;font-family:system-ui,Arial;background:#eee}
+body{margin:0;font-family:system-ui;background:#eee}
 header{background:#f5f5f5;border-bottom:1px solid #ccc;padding:12px 20px;font-size:18px;font-weight:600}
-.toolbar{padding:10px 20px;background:#f0f0f0;border-bottom:1px solid #ccc;display:flex;gap:10px}
+.toolbar{padding:10px 20px;background:#f0f0f0;border-bottom:1px solid #ccc;display:flex;gap:10px;align-items:center}
 button,input[type=file]{background:#fff;border:1px solid #bbb;padding:6px 12px;font-size:14px;cursor:pointer}
-button:hover{background:#eaeaea}
-button:disabled{background:#ddd;color:#888;cursor:not-allowed}
 .container{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;height:calc(100vh - 120px)}
 .panel{display:flex;flex-direction:column;background:#fff;border:1px solid #ccc}
 .panel h3{margin:0;padding:6px 10px;font-size:13px;background:#f7f7f7;border-bottom:1px solid #ccc}
-textarea{flex:1;width:100%;border:none;padding:10px;font-family:Consolas,monospace;font-size:14px;resize:none;outline:none;background:#fafafa}
-footer{text-align:center;font-size:12px;padding:6px;color:#666;background:#f5f5f5;border-top:1px solid #ccc}
+textarea{flex:1;width:100%;border:none;padding:10px;font-family:Consolas,monospace;font-size:14px;background:#fafafa}
 </style>
 </head>
 
 <body>
 
-<header>PGN Cleaner</header>
+<header>PGN Cleaner + Kids Hint</header>
 
 <div class="toolbar">
-<input type="file" id="pgnFile" accept=".pgn">
+<input type="file" id="pgnFile">
+<label><input type="checkbox" id="addHint"> Add Hint</label>
 <button onclick="cleanPGN()">Clean PGN</button>
-<button id="downloadBtn" onclick="downloadPGN()" disabled>Download PGN</button>
+<button id="downloadBtn" onclick="downloadPGN()" disabled>Download</button>
 </div>
 
 <div class="container">
 <div class="panel">
-<h3>Input PGN</h3>
+<h3>Input</h3>
 <textarea id="input"></textarea>
 </div>
 
 <div class="panel">
-<h3>Cleaned PGN</h3>
+<h3>Output</h3>
 <textarea id="output"></textarea>
 </div>
 </div>
 
-<footer>Chess PGN Utility</footer>
-
 <script>
 
-// IMPORT FILE
+// LOAD FILE
 pgnFile.onchange=e=>{
-const f=e.target.files[0];
+let f=e.target.files[0];
 if(!f)return;
-const r=new FileReader();
+let r=new FileReader();
 r.onload=x=>input.value=x.target.result;
 r.readAsText(f);
 };
 
 
-// MAIN CLEANER
+// SIMPLE KIDS HINT GENERATOR
+function kidsHint(side){
+
+let questions=[
+"Can you find the best move?",
+"What is the smartest move here?",
+"How can you improve your position?",
+"Can you attack something?"
+];
+
+let hints=[
+"Look for checks first.",
+"Try to capture something.",
+"See if you can attack the king.",
+"Find a safe strong move.",
+"Look for a piece in danger."
+];
+
+let q=questions[Math.floor(Math.random()*questions.length)];
+let h=hints[Math.floor(Math.random()*hints.length)];
+
+return `{${side}}\n{${q}}\n{${h}}`;
+}
+
+
+// CLEANER
 function cleanPGN(){
 
-const games=input.value.trim().split(/\n\s*\n(?=\[Event)/);
-let result=[];
+let games=input.value.trim().split(/\n\s*\n(?=\[Event)/);
+let out=[];
+let useHint=addHint.checked;
 
 games.forEach((game,i)=>{
 
@@ -69,8 +91,6 @@ let lines=game.split("\n");
 let headers=[];
 let moves=[];
 let fen="";
-
-// Track which tags already inserted
 let used={};
 
 lines.forEach(l=>{
@@ -81,14 +101,11 @@ if(!l)return;
 if(l.startsWith("[")){
 
 let tag=l.match(/^\[(\w+)/)?.[1];
-
 if(!tag)return;
 
-// SKIP duplicate tags entirely
-if(used[tag]) return;
+if(used[tag])return;
 used[tag]=true;
 
-// REPLACE specific tags
 if(tag==="Event") headers.push(`[Event "Puzzle ${n}"]`);
 else if(tag==="White") headers.push(`[White "Position ${n}"]`);
 else if(tag==="Annotator") headers.push(`[Annotator "Circlechess"]`);
@@ -97,21 +114,18 @@ else headers.push(l);
 
 if(tag==="FEN") fen=l;
 
-}else{
-moves.push(l);
-}
+}else moves.push(l);
 
 });
 
-
-// Ensure required tags exist even if missing
+// ensure required tags
 if(!used.Event) headers.unshift(`[Event "Puzzle ${n}"]`);
 if(!used.White) headers.push(`[White "Position ${n}"]`);
 if(!used.Annotator) headers.push(`[Annotator "Circlechess"]`);
 if(!used.ChapterURL) headers.push(`[ChapterURL ""]`);
 
 
-// CLEAN MOVES
+// CLEAN MOVE TEXT
 let cleaned=moves.join(" ")
 
 .replace(/\{\[[^\]]*\]\}/g,"")
@@ -125,11 +139,20 @@ let cleaned=moves.join(" ")
 let side="White to play";
 if(fen.includes(" b ")) side="Black to play";
 
-result.push(headers.join("\n")+"\n{"+side+"} "+cleaned);
+let prefix="";
+
+// ADD HINT IF CHECKED
+if(useHint){
+prefix=kidsHint(side)+" ";
+}else{
+prefix=`{${side}} `;
+}
+
+out.push(headers.join("\n")+"\n"+prefix+cleaned);
 
 });
 
-output.value=result.join("\n\n");
+output.value=out.join("\n\n");
 downloadBtn.disabled=false;
 
 }
@@ -138,15 +161,14 @@ downloadBtn.disabled=false;
 // DOWNLOAD
 function downloadPGN(){
 
-const blob=new Blob([output.value],{type:"text/plain"});
-const url=URL.createObjectURL(blob);
-
-const a=document.createElement("a");
+let blob=new Blob([output.value],{type:"text/plain"});
+let url=URL.createObjectURL(blob);
+let a=document.createElement("a");
 a.href=url;
 a.download="cleaned.pgn";
 a.click();
-
 URL.revokeObjectURL(url);
+
 }
 
 </script>
