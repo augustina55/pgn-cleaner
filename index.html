@@ -5,216 +5,150 @@
 <title>PGN Cleaner</title>
 
 <style>
-  body {
-    margin: 0;
-    font-family: system-ui, Arial, sans-serif;
-    background: #eeeeee;
-    color: #222;
-  }
-
-  header {
-    background: #f5f5f5;
-    border-bottom: 1px solid #ccc;
-    padding: 12px 20px;
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .toolbar {
-    padding: 10px 20px;
-    background: #f0f0f0;
-    border-bottom: 1px solid #ccc;
-    display: flex;
-    gap: 10px;
-  }
-
-  button, input[type="file"] {
-    background: #ffffff;
-    border: 1px solid #bbb;
-    padding: 6px 12px;
-    font-size: 14px;
-    cursor: pointer;
-  }
-
-  button:hover {
-    background: #eaeaea;
-  }
-
-  button:disabled {
-    background: #dddddd;
-    color: #888;
-    cursor: not-allowed;
-  }
-
-  .container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 10px;
-    height: calc(100vh - 120px);
-  }
-
-  .panel {
-    display: flex;
-    flex-direction: column;
-    background: #ffffff;
-    border: 1px solid #ccc;
-  }
-
-  .panel h3 {
-    margin: 0;
-    padding: 6px 10px;
-    font-size: 13px;
-    background: #f7f7f7;
-    border-bottom: 1px solid #ccc;
-  }
-
-  textarea {
-    flex: 1;
-    width: 100%;
-    border: none;
-    padding: 10px;
-    font-family: Consolas, monospace;
-    font-size: 14px;
-    resize: none;
-    outline: none;
-    background: #fafafa;
-  }
-
-  footer {
-    text-align: center;
-    font-size: 12px;
-    padding: 6px;
-    color: #666;
-    background: #f5f5f5;
-    border-top: 1px solid #ccc;
-  }
+body{margin:0;font-family:system-ui,Arial;background:#eee}
+header{background:#f5f5f5;border-bottom:1px solid #ccc;padding:12px 20px;font-size:18px;font-weight:600}
+.toolbar{padding:10px 20px;background:#f0f0f0;border-bottom:1px solid #ccc;display:flex;gap:10px}
+button,input[type=file]{background:#fff;border:1px solid #bbb;padding:6px 12px;font-size:14px;cursor:pointer}
+button:hover{background:#eaeaea}
+button:disabled{background:#ddd;color:#888;cursor:not-allowed}
+.container{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;height:calc(100vh - 120px)}
+.panel{display:flex;flex-direction:column;background:#fff;border:1px solid #ccc}
+.panel h3{margin:0;padding:6px 10px;font-size:13px;background:#f7f7f7;border-bottom:1px solid #ccc}
+textarea{flex:1;width:100%;border:none;padding:10px;font-family:Consolas,monospace;font-size:14px;resize:none;outline:none;background:#fafafa}
+footer{text-align:center;font-size:12px;padding:6px;color:#666;background:#f5f5f5;border-top:1px solid #ccc}
 </style>
 </head>
+
 <body>
 
 <header>PGN Cleaner</header>
 
 <div class="toolbar">
-  <input type="file" id="pgnFile" accept=".pgn">
-  <button onclick="cleanPGN()">Clean PGN</button>
-  <button id="downloadBtn" onclick="downloadPGN()" disabled>Download PGN</button>
+<input type="file" id="pgnFile" accept=".pgn">
+<button onclick="cleanPGN()">Clean PGN</button>
+<button id="downloadBtn" onclick="downloadPGN()" disabled>Download PGN</button>
 </div>
 
 <div class="container">
-  <div class="panel">
-    <h3>Input PGN</h3>
-    <textarea id="input" placeholder="Paste or import PGN here..."></textarea>
-  </div>
+<div class="panel">
+<h3>Input PGN</h3>
+<textarea id="input"></textarea>
+</div>
 
-  <div class="panel">
-    <h3>Cleaned PGN</h3>
-    <textarea id="output" placeholder="Cleaned PGN will appear here..."></textarea>
-  </div>
+<div class="panel">
+<h3>Cleaned PGN</h3>
+<textarea id="output"></textarea>
+</div>
 </div>
 
 <footer>Chess PGN Utility</footer>
 
 <script>
-// Import PGN
-document.getElementById("pgnFile").addEventListener("change", function () {
-  const file = this.files[0];
-  if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById("input").value = e.target.result;
-  };
-  reader.readAsText(file);
+// IMPORT FILE
+pgnFile.onchange=e=>{
+const f=e.target.files[0];
+if(!f)return;
+const r=new FileReader();
+r.onload=x=>input.value=x.target.result;
+r.readAsText(f);
+};
+
+
+// MAIN CLEANER
+function cleanPGN(){
+
+const games=input.value.trim().split(/\n\s*\n(?=\[Event)/);
+let result=[];
+
+games.forEach((game,i)=>{
+
+let n=i+1;
+let lines=game.split("\n");
+
+let headers=[];
+let moves=[];
+let fen="";
+
+// Track which tags already inserted
+let used={};
+
+lines.forEach(l=>{
+
+l=l.trim();
+if(!l)return;
+
+if(l.startsWith("[")){
+
+let tag=l.match(/^\[(\w+)/)?.[1];
+
+if(!tag)return;
+
+// SKIP duplicate tags entirely
+if(used[tag]) return;
+used[tag]=true;
+
+// REPLACE specific tags
+if(tag==="Event") headers.push(`[Event "Puzzle ${n}"]`);
+else if(tag==="White") headers.push(`[White "Position ${n}"]`);
+else if(tag==="Annotator") headers.push(`[Annotator "Circlechess"]`);
+else if(tag==="ChapterURL") headers.push(`[ChapterURL ""]`);
+else headers.push(l);
+
+if(tag==="FEN") fen=l;
+
+}else{
+moves.push(l);
+}
+
 });
 
-// Clean PGN
-function cleanPGN() {
-  const input = document.getElementById("input").value.trim();
-  if (!input) return;
 
-  const games = input.split(/\n\s*\n(?=\[Event)/);
-  let output = [];
+// Ensure required tags exist even if missing
+if(!used.Event) headers.unshift(`[Event "Puzzle ${n}"]`);
+if(!used.White) headers.push(`[White "Position ${n}"]`);
+if(!used.Annotator) headers.push(`[Annotator "Circlechess"]`);
+if(!used.ChapterURL) headers.push(`[ChapterURL ""]`);
 
-  games.forEach((game, index) => {
 
-    let puzzleNum = index + 1;
+// CLEAN MOVES
+let cleaned=moves.join(" ")
 
-    let lines = game.split("\n");
-    let headers = [];
-    let moveLines = [];
-    let fenLine = "";
+.replace(/\{\[[^\]]*\]\}/g,"")
+.replace(/\[%[^\]]*\]/g,"")
+.replace(/\{\s*\}/g,"")
+.replace(/\s+/g," ")
+.trim();
 
-    lines.forEach(line => {
-      line = line.trim();
-      if (!line) return;
 
-      if (line.startsWith("[")) {
+// SIDE TO PLAY
+let side="White to play";
+if(fen.includes(" b ")) side="Black to play";
 
-        // REMOVE old Event / White / Annotator / ChapterURL if present
-        if (
-          line.startsWith("[Event") ||
-          line.startsWith("[White") ||
-          line.startsWith("[Annotator") ||
-          line.startsWith("[ChapterURL")
-        ) return;
+result.push(headers.join("\n")+"\n{"+side+"} "+cleaned);
 
-        headers.push(line);
+});
 
-        if (line.startsWith("[FEN")) fenLine = line;
+output.value=result.join("\n\n");
+downloadBtn.disabled=false;
 
-      } else {
-        moveLines.push(line);
-      }
-    });
-
-    // ADD YOUR CUSTOM HEADERS
-    headers.unshift(`[White "Position ${puzzleNum}"]`);
-    headers.unshift(`[Event "Puzzle ${puzzleNum}"]`);
-    headers.unshift(`[ChapterURL ""]`);
-    headers.unshift(`[Annotator "Circlechess"]`);
-
-    let movesRaw = moveLines.join(" ");
-
-    let trailingComment = "";
-    const comments = [...movesRaw.matchAll(/\{[^}]*\}/g)];
-    if (comments.length) {
-      trailingComment = comments[comments.length - 1][0];
-    }
-
-    let moves = movesRaw
-      .replace(/\{[^}]*\}/g, "")
-      .replace(/\*/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    let side = fenLine.includes(" b ") ? "Black to play" : "White to play";
-
-    let finalLine = `{${side}} ${moves}`;
-    if (trailingComment) finalLine += " " + trailingComment;
-
-    output.push(headers.join("\n") + "\n" + finalLine);
-  });
-
-  document.getElementById("output").value = output.join("\n\n");
-  document.getElementById("downloadBtn").disabled = false;
 }
 
-// Download PGN
-function downloadPGN() {
-  const text = document.getElementById("output").value;
-  if (!text) return;
 
-  const blob = new Blob([text], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
+// DOWNLOAD
+function downloadPGN(){
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "cleaned.pgn";
-  a.click();
+const blob=new Blob([output.value],{type:"text/plain"});
+const url=URL.createObjectURL(blob);
 
-  URL.revokeObjectURL(url);
+const a=document.createElement("a");
+a.href=url;
+a.download="cleaned.pgn";
+a.click();
+
+URL.revokeObjectURL(url);
 }
+
 </script>
 
 </body>
